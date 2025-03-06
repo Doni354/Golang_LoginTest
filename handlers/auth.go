@@ -64,3 +64,10 @@ func Dashboard(c *gin.Context) {
 		"email":    user.Email,
 	})
 }
+
+// Logout menghapus cookie sesi dan mengarahkan pengguna ke halaman login
+func Logout(c *gin.Context) {
+	// Hapus cookie dengan mengatur maxAge ke -1
+	c.SetCookie("user_id", "", -1, "/", "", false, true)
+	c.Redirect(http.StatusFound, "/login")
+}
