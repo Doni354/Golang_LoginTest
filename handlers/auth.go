@@ -159,7 +159,28 @@ func AdminFeature(c *gin.Context) {
 }
 
 // MemberFeature hanya dapat diakses oleh member
-func MemberFeature(c *gin.Context) {
+
+// ShowMemberEditPage menampilkan halaman edit untuk member
+func ShowMemberEditPage(c *gin.Context) {
+	userID, _ := c.Cookie("user_id")
+	var user models.User
+	id, _ := strconv.Atoi(userID)
+	if err := database.DB.First(&user, id).Error; err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+	// Hanya member yang boleh mengedit akun sendiri
+	if user.Role != "member" {
+		c.String(http.StatusForbidden, "Hanya member yang dapat mengedit akun mereka sendiri")
+		return
+	}
+	c.HTML(http.StatusOK, "member_edit.html", gin.H{
+		"user": user,
+	})
+}
+
+// ProcessMemberEdit memproses update data akun member (tidak mengubah role)
+func ProcessMemberEdit(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
 	id, _ := strconv.Atoi(userID)
@@ -168,13 +189,55 @@ func MemberFeature(c *gin.Context) {
 		return
 	}
 	if user.Role != "member" {
-		c.String(http.StatusForbidden, "Access denied: hanya member yang dapat mengakses halaman ini")
+		c.String(http.StatusForbidden, "Hanya member yang dapat mengedit akun mereka sendiri")
 		return
 	}
-	c.HTML(http.StatusOK, "member_feature.html", gin.H{
-		"username": user.Username,
-		"role":     user.Role,
-	})
+
+	// Ambil data dari form
+	newUsername := c.PostForm("username")
+	newEmail := c.PostForm("email")
+	newPassword := c.PostForm("password")
+
+	// Proses file foto profile jika diupload
+	// Jika tidak, biarkan tetap sama
+	fileURL := user.PP
+	file, err := c.FormFile("pp")
+	if err == nil {
+		uploadPath := "./uploads"
+		if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
+			os.Mkdir(uploadPath, os.ModePerm)
+		}
+		ext := filepath.Ext(file.Filename)
+		newFileName := fmt.Sprintf("%s_%d%s", newUsername, time.Now().Unix(), ext)
+		savePath := filepath.Join(uploadPath, newFileName)
+		if err := c.SaveUploadedFile(file, savePath); err != nil {
+			c.HTML(http.StatusInternalServerError, "member_edit.html", gin.H{"error": "Gagal menyimpan foto profile", "user": user})
+			return
+		}
+		fileURL = "/uploads/" + newFileName
+	}
+
+	// Update field (role tidak boleh diubah)
+	user.Username = newUsername
+	user.Email = newEmail
+	user.PP = fileURL
+
+	if newPassword != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.HTML(http.StatusInternalServerError, "member_edit.html", gin.H{"error": "Gagal mengubah password", "user": user})
+			return
+		}
+		user.Password = string(hashedPassword)
+	}
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		c.HTML(http.StatusInternalServerError, "member_edit.html", gin.H{"error": "Gagal memperbarui data", "user": user})
+		return
+	}
+
+	// Redirect ke dashboard setelah update sukses
+	c.Redirect(http.StatusFound, "/dashboard")
 }
 
 // CommonFeature dapat diakses oleh kedua role

@@ -89,14 +89,17 @@ func main() {
 	}
 	// Fitur-fitur lain (AdminFeature, dsb.) jika diperlukan
 	
-	// Route untuk member & common feature
-	auth := r.Group("/")
-	auth.Use(handlers.AuthRequired)
-	{
-		auth.GET("/dashboard", handlers.Dashboard)
-		auth.GET("/memberfeature", handlers.MemberFeature)
-		auth.GET("/commonfeature", handlers.CommonFeature)
-	}
+		// Group route yang memerlukan autentikasi
+		auth := r.Group("/")
+		auth.Use(handlers.AuthRequired)
+		{
+			auth.GET("/dashboard", handlers.Dashboard)
+			auth.GET("/member/edit", handlers.ShowMemberEditPage)
+			auth.POST("/member/edit", handlers.ProcessMemberEdit)
+			auth.GET("/adminfeature", handlers.AdminFeature)
+			auth.GET("/commonfeature", handlers.CommonFeature)
+		}
+	
 
 	// Redirect root ke halaman login
 	r.GET("/", func(c *gin.Context) {
