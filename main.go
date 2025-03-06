@@ -69,7 +69,9 @@ func main() {
 	r.GET("/register", handlers.ShowRegistrationPage)
 	r.POST("/register", handlers.ProcessRegistration)
 	r.GET("/logout", handlers.Logout)
-
+	
+	r.GET("/auth/google/login", handlers.GoogleLogin)
+	r.GET("/auth/google/callback", handlers.GoogleCallback)
 	// Route untuk user management (hanya untuk admin)
 	admin := r.Group("/admin")
 	admin.Use(handlers.AuthRequired)
