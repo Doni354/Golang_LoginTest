@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -11,35 +15,105 @@ import (
 	"Golang_LoginTest/models"
 )
 
-// Tampilkan halaman login
+// ShowLoginPage menampilkan halaman login
 func ShowLoginPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html", gin.H{})
 }
 
-// Proses form login
+// ShowRegistrationPage menampilkan halaman registrasi
+func ShowRegistrationPage(c *gin.Context) {
+	c.HTML(http.StatusOK, "register.html", gin.H{})
+}
+
+// ProcessRegistration memproses registrasi user baru (default role: member)
+// Jika file foto tidak diupload, gunakan default image.
+func ProcessRegistration(c *gin.Context) {
+	username := c.PostForm("username")
+	email := c.PostForm("email")
+	password := c.PostForm("password")
+
+	// Default foto profile
+	defaultPP := "https://static.vecteezy.com/system/resources/previews/005/544/718/non_2x/profile-icon-design-free-vector.jpg"
+	var fileURL string
+
+	// Coba ambil file yang diupload (field "pp")
+	file, err := c.FormFile("pp")
+	if err != nil {
+		// Jika tidak ada file, gunakan default
+		fileURL = defaultPP
+	} else {
+		// Pastikan folder uploads ada
+		uploadPath := "./uploads"
+		if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
+			os.Mkdir(uploadPath, os.ModePerm)
+		}
+
+		// Buat nama file unik
+		ext := filepath.Ext(file.Filename)
+		newFileName := fmt.Sprintf("%s_%d%s", username, time.Now().Unix(), ext)
+		savePath := filepath.Join(uploadPath, newFileName)
+		if err := c.SaveUploadedFile(file, savePath); err != nil {
+			c.HTML(http.StatusInternalServerError, "register.html", gin.H{"error": "Gagal menyimpan foto profile"})
+			return
+		}
+		fileURL = "/uploads/" + newFileName
+	}
+
+	if username == "" || email == "" || password == "" {
+		c.HTML(http.StatusBadRequest, "register.html", gin.H{"error": "Semua field harus diisi"})
+		return
+	}
+
+	// Cek apakah username atau email sudah terdaftar
+	var existingUser models.User
+	if err := database.DB.Where("username = ? OR email = ?", username, email).First(&existingUser).Error; err == nil {
+		c.HTML(http.StatusBadRequest, "register.html", gin.H{"error": "Username atau email sudah terdaftar"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "register.html", gin.H{"error": "Gagal membuat password"})
+		return
+	}
+
+	newUser := models.User{
+		Username: username,
+		Email:    email,
+		Password: string(hashedPassword),
+		Role:     "member", // Registrasi default: member
+		PP:       fileURL,
+	}
+
+	if err := database.DB.Create(&newUser).Error; err != nil {
+		c.HTML(http.StatusInternalServerError, "register.html", gin.H{"error": "Gagal mendaftar"})
+		return
+	}
+
+	c.HTML(http.StatusOK, "register.html", gin.H{"success": "Registrasi berhasil, silakan login."})
+}
+
+// ProcessLogin memproses login user
 func ProcessLogin(c *gin.Context) {
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
-	// Cari user berdasarkan username
 	var user models.User
 	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"error": "Username tidak ditemukan"})
 		return
 	}
 
-	// Validasi password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"error": "Password salah"})
 		return
 	}
 
-	// Simpan user_id di cookie sebagai tanda sesi login
 	c.SetCookie("user_id", strconv.Itoa(int(user.ID)), 3600, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
-// Middleware untuk mengecek autentikasi
+// AuthRequired middleware untuk mengecek sesi login
 func AuthRequired(c *gin.Context) {
 	userID, err := c.Cookie("user_id")
 	if err != nil || userID == "" {
@@ -50,7 +124,7 @@ func AuthRequired(c *gin.Context) {
 	c.Next()
 }
 
-// Halaman dashboard yang menampilkan fitur sesuai role
+// Dashboard menampilkan halaman dashboard dengan data user
 func Dashboard(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -63,10 +137,11 @@ func Dashboard(c *gin.Context) {
 		"username": user.Username,
 		"email":    user.Email,
 		"role":     user.Role,
+		"pp":       user.PP,
 	})
 }
 
-// Halaman fitur khusus admin (hanya untuk admin)
+// AdminFeature hanya dapat diakses oleh admin
 func AdminFeature(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -85,7 +160,7 @@ func AdminFeature(c *gin.Context) {
 	})
 }
 
-// Halaman fitur khusus member (hanya untuk member)
+// MemberFeature hanya dapat diakses oleh member
 func MemberFeature(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -104,7 +179,7 @@ func MemberFeature(c *gin.Context) {
 	})
 }
 
-// Halaman fitur umum (akses oleh admin dan member)
+// CommonFeature dapat diakses oleh kedua role
 func CommonFeature(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -119,7 +194,7 @@ func CommonFeature(c *gin.Context) {
 	})
 }
 
-// Logout: hapus cookie sesi dan redirect ke halaman login
+// Logout menghapus sesi login
 func Logout(c *gin.Context) {
 	c.SetCookie("user_id", "", -1, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/login")
