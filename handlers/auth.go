@@ -51,6 +51,7 @@ func AuthRequired(c *gin.Context) {
 }
 
 // Halaman dashboard (setelah login)
+// Mengirim data role sehingga template bisa menampilkan fitur sesuai role
 func Dashboard(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -62,12 +63,12 @@ func Dashboard(c *gin.Context) {
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"username": user.Username,
 		"email":    user.Email,
+		"role":     user.Role,
 	})
 }
 
-// Logout menghapus cookie sesi dan mengarahkan pengguna ke halaman login
+// Logout: hapus cookie sesi dan redirect ke halaman login
 func Logout(c *gin.Context) {
-	// Hapus cookie dengan mengatur maxAge ke -1
 	c.SetCookie("user_id", "", -1, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/login")
 }

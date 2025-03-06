@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
-
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -13,33 +11,47 @@ import (
 	"Golang_LoginTest/models"
 )
 
-// seedUser: Menambahkan data user default jika tabel masih kosong
+// Seed data: menambahkan user dummy jika tabel kosong
 func seedUser() {
 	var count int64
 	database.DB.Model(&models.User{}).Count(&count)
 	if count == 0 {
-		password := "john"
-		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		// Buat user admin
+		adminPassword, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 		if err != nil {
-			log.Fatal("Failed to hash password:", err)
+			log.Fatal("Gagal hash password admin:", err)
 		}
-		user := models.User{
-			Username: "john",
-			Email:    "john@example.com",
-			Password: string(hash),
+		admin := models.User{
+			Username: "admin",
+			Email:    "admin@example.com",
+			Password: string(adminPassword),
+			Role:     "admin",
 		}
-		result := database.DB.Create(&user)
-		if result.Error != nil {
-			log.Fatal("Failed to seed user:", result.Error)
+		database.DB.Create(&admin)
+
+		// Buat user member
+		memberPassword, err := bcrypt.GenerateFromPassword([]byte("member"), bcrypt.DefaultCost)
+		if err != nil {
+			log.Fatal("Gagal hash password member:", err)
 		}
-		log.Println("Seeded default user: john / password123")
+		member := models.User{
+			Username: "member",
+			Email:    "member@example.com",
+			Password: string(memberPassword),
+			Role:     "member",
+		}
+		database.DB.Create(&member)
+
+		log.Println("Seeded dummy users: admin & member")
 	}
 }
 
 func main() {
 	// Hubungkan ke database
 	database.Connect()
+	// Seed data user dummy jika tabel kosong
 	seedUser()
+
 	// Inisialisasi Gin
 	r := gin.Default()
 	r.LoadHTMLGlob("templates/*")
@@ -47,7 +59,7 @@ func main() {
 	// Routing untuk login, logout, dan dashboard
 	r.GET("/login", handlers.ShowLoginPage)
 	r.POST("/login", handlers.ProcessLogin)
-	r.GET("/logout", handlers.Logout)  // Route logout
+	r.GET("/logout", handlers.Logout)
 
 	// Group route yang memerlukan autentikasi
 	auth := r.Group("/")
@@ -58,7 +70,7 @@ func main() {
 
 	// Redirect root ke halaman login
 	r.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusFound, "/login")
+		c.Redirect(302, "/login")
 	})
 
 	// Jalankan server pada port 8080
