@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,13 +43,10 @@ func ProcessRegistration(c *gin.Context) {
 		// Jika tidak ada file, gunakan default
 		fileURL = defaultPP
 	} else {
-		// Pastikan folder uploads ada
 		uploadPath := "./uploads"
 		if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
 			os.Mkdir(uploadPath, os.ModePerm)
 		}
-
-		// Buat nama file unik
 		ext := filepath.Ext(file.Filename)
 		newFileName := fmt.Sprintf("%s_%d%s", username, time.Now().Unix(), ext)
 		savePath := filepath.Join(uploadPath, newFileName)

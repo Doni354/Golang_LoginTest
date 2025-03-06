@@ -58,23 +58,42 @@ func main() {
 
 	// Inisialisasi Gin
 	r := gin.Default()
+	// Muat template HTML
 	r.LoadHTMLGlob("templates/*")
 	// Sajikan file statis untuk folder uploads
 	r.Static("/uploads", "./uploads")
 
-	// Routing untuk login, registrasi, logout, dan fitur
+	// Route untuk login, registrasi, logout, dashboard, dan fitur
 	r.GET("/login", handlers.ShowLoginPage)
 	r.POST("/login", handlers.ProcessLogin)
 	r.GET("/register", handlers.ShowRegistrationPage)
 	r.POST("/register", handlers.ProcessRegistration)
 	r.GET("/logout", handlers.Logout)
 
-	// Group route yang memerlukan autentikasi
+	// Route untuk user management (hanya untuk admin)
+	admin := r.Group("/admin")
+	admin.Use(handlers.AuthRequired)
+	{
+		// Halaman utama admin feature (dashboard admin)
+		admin.GET("/dashboard", handlers.Dashboard)
+		// Fitur user management
+		admin.GET("/users", handlers.ManageUsers)
+		admin.GET("/users/create", handlers.ShowCreateUserPage)
+		admin.POST("/users/create", handlers.ProcessCreateUser)
+		admin.GET("/users/edit/:id", handlers.ShowEditUserPage)
+		admin.POST("/users/edit/:id", handlers.ProcessEditUser)
+		admin.GET("/users/delete/:id", handlers.DeleteUser)
+		
+
+		
+	}
+	// Fitur-fitur lain (AdminFeature, dsb.) jika diperlukan
+	
+	// Route untuk member & common feature
 	auth := r.Group("/")
 	auth.Use(handlers.AuthRequired)
 	{
 		auth.GET("/dashboard", handlers.Dashboard)
-		auth.GET("/adminfeature", handlers.AdminFeature)
 		auth.GET("/memberfeature", handlers.MemberFeature)
 		auth.GET("/commonfeature", handlers.CommonFeature)
 	}
