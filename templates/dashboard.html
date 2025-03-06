@@ -16,22 +16,15 @@
       </div>
       <div class="card-body">
         <h5 class="card-title">Selamat datang, {{ .username }}!</h5>
-        <p class="card-text">Email: {{ .email }}</p>
-
-        {{ if eq .role "admin" }}
-        <!-- Fitur khusus admin -->
-        <div class="alert alert-info">
-          <h6>Admin Panel</h6>
-          <p>Fitur admin: Manajemen pengguna, laporan, dan pengaturan sistem.</p>
+        <p class="card-text">Email: {{ .email }}<br>Role: {{ .role }}</p>
+        <div class="mt-3">
+          <a href="/commonfeature" class="btn btn-info">Common Feature</a>
+          {{ if eq .role "admin" }}
+            <a href="/adminfeature" class="btn btn-primary">Admin Feature</a>
+          {{ else if eq .role "member" }}
+            <a href="/memberfeature" class="btn btn-success">Member Feature</a>
+          {{ end }}
         </div>
-        {{ else if eq .role "member" }}
-        <!-- Fitur khusus member -->
-        <div class="alert alert-success">
-          <h6>Member Area</h6>
-          <p>Fitur member: Akses ke konten eksklusif, forum, dan tips.</p>
-        </div>
-        {{ end }}
-
       </div>
     </div>
   </div>

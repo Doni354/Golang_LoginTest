@@ -45,18 +45,17 @@ func seedUser() {
 		log.Println("Seeded dummy users: admin & member")
 	}
 }
-
 func main() {
 	// Hubungkan ke database
 	database.Connect()
-	// Seed data user dummy jika tabel kosong
+	// Seed data dummy jika tabel kosong
 	seedUser()
 
 	// Inisialisasi Gin
 	r := gin.Default()
 	r.LoadHTMLGlob("templates/*")
 
-	// Routing untuk login, logout, dan dashboard
+	// Route untuk login, logout, dan fitur umum
 	r.GET("/login", handlers.ShowLoginPage)
 	r.POST("/login", handlers.ProcessLogin)
 	r.GET("/logout", handlers.Logout)
@@ -66,6 +65,9 @@ func main() {
 	auth.Use(handlers.AuthRequired)
 	{
 		auth.GET("/dashboard", handlers.Dashboard)
+		auth.GET("/adminfeature", handlers.AdminFeature)
+		auth.GET("/memberfeature", handlers.MemberFeature)
+		auth.GET("/commonfeature", handlers.CommonFeature)
 	}
 
 	// Redirect root ke halaman login

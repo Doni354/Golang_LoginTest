@@ -50,8 +50,7 @@ func AuthRequired(c *gin.Context) {
 	c.Next()
 }
 
-// Halaman dashboard (setelah login)
-// Mengirim data role sehingga template bisa menampilkan fitur sesuai role
+// Halaman dashboard yang menampilkan fitur sesuai role
 func Dashboard(c *gin.Context) {
 	userID, _ := c.Cookie("user_id")
 	var user models.User
@@ -63,6 +62,59 @@ func Dashboard(c *gin.Context) {
 	c.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"username": user.Username,
 		"email":    user.Email,
+		"role":     user.Role,
+	})
+}
+
+// Halaman fitur khusus admin (hanya untuk admin)
+func AdminFeature(c *gin.Context) {
+	userID, _ := c.Cookie("user_id")
+	var user models.User
+	id, _ := strconv.Atoi(userID)
+	if err := database.DB.First(&user, id).Error; err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+	if user.Role != "admin" {
+		c.String(http.StatusForbidden, "Access denied: hanya admin yang dapat mengakses halaman ini")
+		return
+	}
+	c.HTML(http.StatusOK, "admin_feature.html", gin.H{
+		"username": user.Username,
+		"role":     user.Role,
+	})
+}
+
+// Halaman fitur khusus member (hanya untuk member)
+func MemberFeature(c *gin.Context) {
+	userID, _ := c.Cookie("user_id")
+	var user models.User
+	id, _ := strconv.Atoi(userID)
+	if err := database.DB.First(&user, id).Error; err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+	if user.Role != "member" {
+		c.String(http.StatusForbidden, "Access denied: hanya member yang dapat mengakses halaman ini")
+		return
+	}
+	c.HTML(http.StatusOK, "member_feature.html", gin.H{
+		"username": user.Username,
+		"role":     user.Role,
+	})
+}
+
+// Halaman fitur umum (akses oleh admin dan member)
+func CommonFeature(c *gin.Context) {
+	userID, _ := c.Cookie("user_id")
+	var user models.User
+	id, _ := strconv.Atoi(userID)
+	if err := database.DB.First(&user, id).Error; err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+	c.HTML(http.StatusOK, "common_feature.html", gin.H{
+		"username": user.Username,
 		"role":     user.Role,
 	})
 }
